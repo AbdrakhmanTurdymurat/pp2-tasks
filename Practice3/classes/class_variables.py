@@ -9,3 +9,7 @@ s2 = School("Dana")
 
 print(s1.school_name)
 print(s2.student)
+
+
+School.school_name = "New School"
+print(s1.school_name)

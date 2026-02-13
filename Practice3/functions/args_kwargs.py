@@ -14,8 +14,8 @@ def show_info(**info):
 show_info(name="Alex", age=20)
 
 
-def mix(a, b, *args):
-    print(a, b, args)
+def mix(a, *args):
+    print(a, args)
 
 mix(1, 2, 3, 4)
 

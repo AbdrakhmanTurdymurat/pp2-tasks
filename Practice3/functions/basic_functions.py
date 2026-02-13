@@ -1,22 +1,22 @@
 def greet():
-    print("Hello, world!")
+    print("Hello")
 
 greet()
 
 
-def say_hi(name):
-    print("Hi", name)
+def greet_name(name):
+    print("Hello", name)
 
-say_hi("Alice")
+greet_name("Ali")
 
 
-def show_number(num):
-    print("Number:", num)
+def show_number(n):
+    print("Number:", n)
 
 show_number(10)
 
 
-def is_positive(x):
+def check_positive(x):
     print(x > 0)
 
-is_positive(5)
+check_positive(-5)

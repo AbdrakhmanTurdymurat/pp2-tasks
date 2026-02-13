@@ -1,13 +1,11 @@
 numbers = [1, 2, 3, 4, 5]
 
-even = filter(lambda x: x % 2 == 0, numbers)
-print(list(even))
+print(list(filter(lambda x: x % 2 == 0, numbers)))
 
-
-greater = filter(lambda x: x > 3, numbers)
-print(list(greater))
-
+print(list(filter(lambda x: x > 3, numbers)))
 
 words = ["hi", "hello", "bye"]
-long_words = filter(lambda w: len(w) > 2, words)
-print(list(long_words))
+print(list(filter(lambda w: len(w) > 2, words)))
+
+values = [10, 20, 5]
+print(list(filter(lambda x: x >= 10, values)))

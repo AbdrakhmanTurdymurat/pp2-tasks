@@ -1,12 +1,12 @@
 numbers = [3, 1, 4, 2]
-sorted_nums = sorted(numbers)
-print(sorted_nums)
 
+print(sorted(numbers))
 
-sorted_desc = sorted(numbers, key=lambda x: -x)
-print(sorted_desc)
-
+print(sorted(numbers, key=lambda x: -x))
 
 words = ["apple", "kiwi", "banana"]
-sorted_words = sorted(words, key=lambda x: len(x))
-print(sorted_words)
+print(sorted(words, key=lambda x: len(x)))
+
+students = [{"name": "Ali", "age": 20},
+            {"name": "Dana", "age": 18}]
+print(sorted(students, key=lambda x: x["age"]))

@@ -1,4 +1,4 @@
-sdef student(name, age):
+def student(name, age):
     print(name, age)
 
 student("John", 18)
@@ -11,14 +11,14 @@ country()
 country("Japan")
 
 
-def add(a, b, c):
-    print(a + b + c)
+def keyword_example(first, second):
+    print(first, second)
 
-add(1, 2, 3)
+keyword_example(second="B", first="A")
 
 
-def print_list(items):
-    for i in items:
-        print(i)
+def pass_list(items):
+    for item in items:
+        print(item)
 
-print_list([1, 2, 3])
+pass_list([1, 2, 3])

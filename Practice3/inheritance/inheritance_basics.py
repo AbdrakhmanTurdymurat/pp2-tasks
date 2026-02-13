@@ -7,3 +7,10 @@ class Dog(Animal):
 
 dog = Dog()
 dog.speak()
+
+
+class Cat(Animal):
+    pass
+
+cat = Cat()
+cat.speak()

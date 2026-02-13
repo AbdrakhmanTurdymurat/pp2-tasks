@@ -7,3 +7,11 @@ class Car:
 
 car = Car("Toyota")
 car.drive()
+
+
+class Animal:
+    def speak(self):
+        print("Animal sound")
+
+a = Animal()
+a.speak()

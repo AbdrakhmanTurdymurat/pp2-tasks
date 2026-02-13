@@ -8,3 +8,11 @@ class Sparrow(Bird):
 
 b = Sparrow()
 b.sound()
+
+
+class Parrot(Bird):
+    def sound(self):
+        print("Talk")
+
+p = Parrot()
+p.sound()
