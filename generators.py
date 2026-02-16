@@ -9,7 +9,7 @@ for i in s:
 n = int(input("Enter a number: "))
 e = (i for i in range(0, n + 1) if i % 2 == 0)
 
-print(",".join(str(i) for i in evens))
+print(",".join(str(i) for i in e))
 
 #3
 def d34(n):
