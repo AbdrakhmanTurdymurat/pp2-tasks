@@ -1,126 +1,265 @@
 import csv
-from connect import get_connection
+import sys
+from connect import get_connection, create_table
 
-def insert_from_csv(file_path):
+
+def insert_from_csv(filepath):
+    sql = """
+        INSERT INTO contacts (username, phone)
+        VALUES (%s, %s)
+        ON CONFLICT (username) DO NOTHING;
+    """
     conn = get_connection()
-    cur = conn.cursor()
+    inserted = 0
+    skipped = 0
+    try:
+        with open(filepath, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = [(row["username"].strip(), row["phone"].strip()) for row in reader]
+        with conn:
+            with conn.cursor() as cur:
+                for username, phone in rows:
+                    cur.execute(sql, (username, phone))
+                    if cur.rowcount:
+                        inserted += 1
+                    else:
+                        skipped += 1
+        print(f"[OK] CSV import done — inserted: {inserted}, skipped: {skipped}")
+    except FileNotFoundError:
+        print(f"[ERROR] File not found: {filepath}")
+    except Exception as e:
+        print(f"[ERROR] CSV import failed: {e}")
+    finally:
+        conn.close()
 
-    with open(file_path, "r") as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            cur.execute(
-                "INSERT INTO contacts (name, phone) VALUES (%s, %s)",
-                (row["name"], row["phone"])
-            )
-
-    conn.commit()
-    cur.close()
-    conn.close()
-    print("Данные из CSV добавлены")
 
 def insert_from_console():
-    name = input("Имя: ")
-    phone = input("Телефон: ")
-
+    username = input("  Enter username : ").strip()
+    phone    = input("  Enter phone    : ").strip()
+    if not username or not phone:
+        print("[ERROR] Username and phone cannot be empty.")
+        return
+    sql = """
+        INSERT INTO contacts (username, phone)
+        VALUES (%s, %s)
+        ON CONFLICT (username) DO NOTHING;
+    """
     conn = get_connection()
-    cur = conn.cursor()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (username, phone))
+                if cur.rowcount:
+                    print(f"[OK] Contact '{username}' added.")
+                else:
+                    print(f"[SKIP] Username '{username}' already exists.")
+    except Exception as e:
+        print(f"[ERROR] Insert failed: {e}")
+    finally:
+        conn.close()
 
-    cur.execute(
-        "INSERT INTO contacts (name, phone) VALUES (%s, %s)",
-        (name, phone)
-    )
 
-    conn.commit()
-    cur.close()
-    conn.close()
-    print("Контакт добавлен")
-
-
-def update_contact():
-    name = input("Кого обновить: ")
-    new_name = input("Новое имя (или Enter): ")
-    new_phone = input("Новый телефон (или Enter): ")
-
-    conn = get_connection()
-    cur = conn.cursor()
-
-    if new_name:
-        cur.execute("UPDATE contacts SET name=%s WHERE name=%s", (new_name, name))
-    if new_phone:
-        cur.execute("UPDATE contacts SET phone=%s WHERE name=%s", (new_phone, name))
-
-    conn.commit()
-    cur.close()
-    conn.close()
-    print("Контакт обновлен")
-
-def query_contacts():
-    print("1 - Все\n2 - По имени\n3 - По префиксу")
-    choice = input("Выбор: ")
-
-    conn = get_connection()
-    cur = conn.cursor()
-
-    if choice == "1":
-        cur.execute("SELECT * FROM contacts")
-
-    elif choice == "2":
-        name = input("Имя: ")
-        cur.execute("SELECT * FROM contacts WHERE name ILIKE %s", ('%' + name + '%',))
-
-    elif choice == "3":
-        prefix = input("Префикс: ")
-        cur.execute("SELECT * FROM contacts WHERE phone LIKE %s", (prefix + '%',))
-
-    rows = cur.fetchall()
+def _print_rows(rows):
+    if not rows:
+        print("  (no results)")
+        return
+    print(f"  {'ID':<6} {'USERNAME':<25} {'PHONE':<20}")
+    print("  " + "-" * 53)
     for row in rows:
-        print(row)
+        print(f"  {row[0]:<6} {row[1]:<25} {row[2]:<20}")
 
-    cur.close()
-    conn.close()
 
-def delete_contact():
-    value = input("Имя или телефон для удаления: ")
-
+def search_by_name(pattern):
+    sql = "SELECT id, username, phone FROM contacts WHERE username ILIKE %s ORDER BY username;"
     conn = get_connection()
-    cur = conn.cursor()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (f"%{pattern}%",))
+            rows = cur.fetchall()
+        print(f"\n  Results for username ~ '{pattern}':")
+        _print_rows(rows)
+    except Exception as e:
+        print(f"[ERROR] Search failed: {e}")
+    finally:
+        conn.close()
 
-    cur.execute(
-        "DELETE FROM contacts WHERE name=%s OR phone=%s",
-        (value, value)
-    )
 
-    conn.commit()
-    cur.close()
-    conn.close()
-    print("Удалено")
+def search_by_phone_prefix(prefix):
+    sql = "SELECT id, username, phone FROM contacts WHERE phone LIKE %s ORDER BY username;"
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, (f"{prefix}%",))
+            rows = cur.fetchall()
+        print(f"\n  Results for phone prefix '{prefix}':")
+        _print_rows(rows)
+    except Exception as e:
+        print(f"[ERROR] Search failed: {e}")
+    finally:
+        conn.close()
 
-def menu():
+
+def show_all():
+    sql = "SELECT id, username, phone FROM contacts ORDER BY username;"
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql)
+            rows = cur.fetchall()
+        print(f"\n  All contacts ({len(rows)} total):")
+        _print_rows(rows)
+    except Exception as e:
+        print(f"[ERROR] Could not fetch contacts: {e}")
+    finally:
+        conn.close()
+
+
+def update_phone_by_username():
+    username  = input("  Enter username to update : ").strip()
+    new_phone = input("  Enter new phone number   : ").strip()
+    if not username or not new_phone:
+        print("[ERROR] Fields cannot be empty.")
+        return
+    sql = "UPDATE contacts SET phone = %s WHERE username = %s;"
+    conn = get_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (new_phone, username))
+                if cur.rowcount:
+                    print(f"[OK] Phone updated for '{username}'.")
+                else:
+                    print(f"[WARN] No contact with username '{username}' found.")
+    except Exception as e:
+        print(f"[ERROR] Update failed: {e}")
+    finally:
+        conn.close()
+
+
+def update_username_by_phone():
+    phone        = input("  Enter phone to look up    : ").strip()
+    new_username = input("  Enter new username        : ").strip()
+    if not phone or not new_username:
+        print("[ERROR] Fields cannot be empty.")
+        return
+    sql = "UPDATE contacts SET username = %s WHERE phone = %s;"
+    conn = get_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (new_username, phone))
+                if cur.rowcount:
+                    print(f"[OK] Username updated for phone '{phone}'.")
+                else:
+                    print(f"[WARN] No contact with phone '{phone}' found.")
+    except Exception as e:
+        print(f"[ERROR] Update failed: {e}")
+    finally:
+        conn.close()
+
+
+def delete_by_username():
+    username = input("  Enter username to delete : ").strip()
+    if not username:
+        print("[ERROR] Username cannot be empty.")
+        return
+    confirm = input(f"  Delete '{username}'? (y/n): ").strip().lower()
+    if confirm != "y":
+        print("  Cancelled.")
+        return
+    sql = "DELETE FROM contacts WHERE username = %s;"
+    conn = get_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (username,))
+                if cur.rowcount:
+                    print(f"[OK] Contact '{username}' deleted.")
+                else:
+                    print(f"[WARN] No contact with username '{username}' found.")
+    except Exception as e:
+        print(f"[ERROR] Delete failed: {e}")
+    finally:
+        conn.close()
+
+
+def delete_by_phone():
+    phone = input("  Enter phone to delete : ").strip()
+    if not phone:
+        print("[ERROR] Phone cannot be empty.")
+        return
+    confirm = input(f"  Delete contact with phone '{phone}'? (y/n): ").strip().lower()
+    if confirm != "y":
+        print("  Cancelled.")
+        return
+    sql = "DELETE FROM contacts WHERE phone = %s;"
+    conn = get_connection()
+    try:
+        with conn:
+            with conn.cursor() as cur:
+                cur.execute(sql, (phone,))
+                if cur.rowcount:
+                    print(f"[OK] Contact with phone '{phone}' deleted.")
+                else:
+                    print(f"[WARN] No contact with phone '{phone}' found.")
+    except Exception as e:
+        print(f"[ERROR] Delete failed: {e}")
+    finally:
+        conn.close()
+
+
+MENU = """
+╔══════════════════════════════════════╗
+║        PhoneBook — Main Menu         ║
+╠══════════════════════════════════════╣
+║  1. Show all contacts                ║
+║  2. Search by name                   ║
+║  3. Search by phone prefix           ║
+║  4. Add contact (console)            ║
+║  5. Import contacts from CSV         ║
+║  6. Update phone (by username)       ║
+║  7. Update username (by phone)       ║
+║  8. Delete contact (by username)     ║
+║  9. Delete contact (by phone)        ║
+║  0. Exit                             ║
+╚══════════════════════════════════════╝
+"""
+
+
+def main():
+    create_table()
     while True:
-        print("""
-1. Загрузить CSV
-2. Добавить контакт
-3. Обновить
-4. Поиск
-5. Удалить
-0. Выход
-        """)
-
-        choice = input("Выбор: ")
-
+        print(MENU)
+        choice = input("  Your choice: ").strip()
         if choice == "1":
-            insert_from_csv("contacts.csv")
+            show_all()
         elif choice == "2":
-            insert_from_console()
+            pattern = input("  Enter name (or part of name): ").strip()
+            search_by_name(pattern)
         elif choice == "3":
-            update_contact()
+            prefix = input("  Enter phone prefix: ").strip()
+            search_by_phone_prefix(prefix)
         elif choice == "4":
-            query_contacts()
+            insert_from_console()
         elif choice == "5":
-            delete_contact()
+            filepath = input("  Enter CSV file path [contacts.csv]: ").strip()
+            if not filepath:
+                filepath = "contacts.csv"
+            insert_from_csv(filepath)
+        elif choice == "6":
+            update_phone_by_username()
+        elif choice == "7":
+            update_username_by_phone()
+        elif choice == "8":
+            delete_by_username()
+        elif choice == "9":
+            delete_by_phone()
         elif choice == "0":
-            break
+            print("  Goodbye!")
+            sys.exit(0)
+        else:
+            print("  [WARN] Invalid choice.")
 
 
 if __name__ == "__main__":
-    menu()
+    main()
